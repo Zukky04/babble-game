@@ -116,6 +116,43 @@
         .attr("r", d.radius);
     }
 
+// 既存の circles の作成後に drag を追加
+circles.call(d3.drag()
+  .on("start", dragstarted)
+  .on("drag", dragged)
+  .on("end", dragended));
+
+// ドラッグ開始時に固定位置と初期座標を記録
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+  d.startX = event.x;
+  d.startY = event.y;
+}
+
+// ドラッグ中はバブルの位置を更新
+function dragged(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+  // 最後の座標も記録しておく
+  d.lastX = event.x;
+  d.lastY = event.y;
+}
+
+// ドラッグ終了時に、開始位置と終了位置の差から速度を計算して設定
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+  // スワイプの移動量を計算（時間情報を使わず単純に距離で推進力を与える例）
+  let dx = event.x - d.startX;
+  let dy = event.y - d.startY;
+  // ここで乗算する値（0.1 など）を調整すると、推進力の強さが変わる
+  d.vx = dx * 0.1;
+  d.vy = dy * 0.1;
+}
+
     // マウスオーバーとクリックの両方で拡大アニメーションを実施
     circles.on("mouseover", expandBubble);
     circles.on("click", expandBubble);
