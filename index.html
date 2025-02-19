@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Bubble Simulation</title>
+  <style>
+    /* 画面全体を覆う背景と SVG のサイズ設定 */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #222;
+    }
+    svg {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- SVG要素。ここにバブルやグラデーションの定義を描画 -->
+  <svg></svg>
+  
+  <!-- D3.js の CDN 読み込み -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    // ステップ1: SVG のサイズを取得
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const svg = d3.select("svg");
+
+    // ステップ2: ノード（バブル）のデータ生成
+    const numBubbles = 20;  // バブルの数
+    const nodes = d3.range(numBubbles).map((d, i) => {
+      return {
+        id: i,
+        x: Math.random() * width,
+        y: Math.random() * height,
+        radius: 20 + Math.random() * 20  // 20～40 の範囲でランダムなサイズ
+      };
+    });
+
+    // ステップ3: SVG 内の <defs> で各バブル用のグラデーションを定義
+    const defs = svg.append("defs");
+    nodes.forEach((d, i) => {
+      // ランダムな色相を元にグラデーション用の色を生成
+      const colorStart = d3.interpolateCool(Math.random());
+      const colorEnd   = d3.interpolateCool(Math.random());
+      
+      const grad = defs.append("radialGradient")
+        .attr("id", "grad" + i)
+        .attr("cx", "50%")
+        .attr("cy", "50%")
+        .attr("r", "50%")
+        .attr("fx", "50%")
+        .attr("fy", "50%");
+      
+      grad.append("stop")
+        .attr("offset", "30%")
+        .attr("stop-color", colorStart)
+        .attr("stop-opacity", 1);
+      
+      grad.append("stop")
+        .attr("offset", "100%")
+        .attr("stop-color", colorEnd)
+        .attr("stop-opacity", 0.7);
+    });
+
+    // ステップ4: バブル（円）の作成と属性の設定
+    const circles = svg.selectAll("circle")
+      .data(nodes)
+      .enter()
+      .append("circle")
+      .attr("r", d => d.radius)
+      .attr("fill", (d, i) => "url(#grad" + i + ")")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1)
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    // ステップ5: d3.forceSimulation による力レイアウト設定
+    const simulation = d3.forceSimulation(nodes)
+      .velocityDecay(0.2)  // 動きの減衰具合（低めだと滑らか）
+      .force("charge", d3.forceManyBody().strength(-30))
+      .force("collision", d3.forceCollide().radius(d => d.radius + 2).iterations(2))
+      // 必ずしもセンターに集まらず自由に動かすため center force は付けない
+      .on("tick", ticked);
+
+    // ステップ6: シミュレーションの各 tick ごとに位置更新と境界チェック
+    function ticked() {
+      // 画面外に出ないように、各バブルの位置をチェック
+      nodes.forEach(d => {
+        if (d.x < d.radius) d.x = d.radius;
+        if (d.x > width - d.radius) d.x = width - d.radius;
+        if (d.y < d.radius) d.y = d.radius;
+        if (d.y > height - d.radius) d.y = height - d.radius;
+      });
+      
+      circles
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+    }
+
+    // ステップ7: バブルにマウスオーバー／クリック時のアニメーション追加
+    function expandBubble(event, d) {
+      // d3.transition を利用して、サイズを拡大後元に戻す
+      d3.select(this)
+        .interrupt()  // 既存のトランジションをキャンセル
+        .transition()
+        .duration(300)
+        .attr("r", d.radius * 1.5)
+        .transition()
+        .delay(1000)  // 拡大状態を1秒キープ
+        .duration(300)
+        .attr("r", d.radius);
+    }
+
+    // マウスオーバーとクリックの両方で拡大アニメーションを実施
+    circles.on("mouseover", expandBubble);
+    circles.on("click", expandBubble);
+  </script>
+</body>
+</html>
